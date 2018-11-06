@@ -62,6 +62,41 @@ GZ_REGISTER_MODEL_PLUGIN(GazeboYarpControlBoard)
             return;
         }
 
+        // if yarpPluginConfigurationOverride is present with the name of this plugin, replace or add sdf elements
+        sdf::ElementPtr overriden_element, new_element;
+        sdf::ElementPtr model_element = _sdf->GetParent()->GetFirstElement();
+        while(model_element)
+        {
+            if(model_element->GetName()=="plugin" && model_element->HasElement("yarpPluginConfigurationOverride") && model_element->GetElement("yarpPluginConfigurationOverride")->HasAttribute("plugin_name") && model_element->GetElement("yarpPluginConfigurationOverride")->GetAttribute("plugin_name")->GetAsString()==_sdf->GetAttribute("name")->GetAsString())
+            {
+                yInfo() <<  "GazeboYarpControlBoard : Found yarpPluginConfigurationOverride element";
+                new_element = model_element->GetFirstElement();
+                while(new_element)
+                {
+                    if(new_element->GetName() != "yarpPluginConfigurationOverride")
+                    {
+                        // if the element to be overritten is not found in the control board sdf, create the element
+                        if(! _sdf->HasElement(new_element->GetName()))
+                        {
+                            // AddElement
+                            _sdf->AddElementDescription(new_element);
+                            overriden_element = _sdf->GetElement(new_element->GetName());
+                            yInfo() << "GazeboYarpControlBoard : " << new_element->GetName() << " has been created" ;
+                        }
+                        else
+                        {
+                            // write the value taken from the yarpPluginConfigurationOverride element (new_element) to the control board sdf element (overriden_element)
+                            overriden_element = _sdf->GetElement(new_element->GetName());
+                            overriden_element->Set<std::string>(new_element->Get<std::string>());
+                            yInfo() << "GazeboYarpControlBoard : " << new_element->GetName() << " has been overwritten" ;
+                        }
+                    }
+                    new_element = new_element->GetNextElement();
+                }
+            }
+            model_element = model_element->GetNextElement();
+        }
+
         m_robotName = _parent->GetScopedName();
         GazeboYarpPlugins::Handler::getHandler()->setRobot(get_pointer(_parent));
 
@@ -161,6 +196,7 @@ GZ_REGISTER_MODEL_PLUGIN(GazeboYarpControlBoard)
                     //yDebug()<<configuration_s;
                 }
 
+
                  newPoly.poly = new yarp::dev::PolyDriver;
                 if(! newPoly.poly->open(m_parameters) || ! newPoly.poly->isValid())
                 {
@@ -188,5 +224,4 @@ GZ_REGISTER_MODEL_PLUGIN(GazeboYarpControlBoard)
             return;
         }
     }
-
 }
